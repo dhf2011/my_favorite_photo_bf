@@ -1,4 +1,10 @@
 import listingRepo from "../repositories/listingRepository.js";
+import {
+    normalizeGrade,
+    normalizeGenre,
+    assertAllowedGrade,
+    assertAllowedGenre,
+} from "../constants/photoCardEnums.js";
 
 // 리스팅 생성
 async function createListing(sellerUserId, payload) {
@@ -69,9 +75,18 @@ async function createListing(sellerUserId, payload) {
         throw err;
     }
 
-    const desiredGrade = payload?.desiredGrade != null ? String(payload.desiredGrade).trim() || null : null;
-    const desiredGenre = payload?.desiredGenre != null ? String(payload.desiredGenre).trim() || null : null;
+    let desiredGrade = payload?.desiredGrade != null ? String(payload.desiredGrade).trim() || null : null;
+    let desiredGenre = payload?.desiredGenre != null ? String(payload.desiredGenre).trim() || null : null;
     const desiredDesc = payload?.desiredDesc != null ? String(payload.desiredDesc).trim() || null : null;
+
+    if (desiredGrade) {
+        desiredGrade = normalizeGrade(desiredGrade);
+        assertAllowedGrade(desiredGrade);
+    }
+    if (desiredGenre) {
+        desiredGenre = normalizeGenre(desiredGenre);
+        assertAllowedGenre(desiredGenre);
+    }
 
     const listingId = await listingRepo.createListing({
         userCardId,
@@ -131,8 +146,8 @@ async function listListings({ limit = 20, cursor = null, sortBy = "reg_date", so
         sortBy,
         sortOrder: sortOrder.toUpperCase(),
         status,
-        grade: grade ?? null,
-        genre: genre ?? null,
+        grade: grade ? normalizeGrade(grade) : null,
+        genre: genre ? normalizeGenre(genre) : null,
     });
 
     const items = rows.map(mapRow);
@@ -155,8 +170,8 @@ async function listListingsBySellerId(sellerUserId, opts = {}) {
     const sortBy = opts.sortBy || "reg_date";
     const sortOrder = (opts.sortOrder || "DESC").toUpperCase();
     const status = opts.status ?? "ACTIVE";
-    const grade = opts.grade ?? null;
-    const genre = opts.genre ?? null;
+    const grade = opts.grade ? normalizeGrade(opts.grade) : null;
+    const genre = opts.genre ? normalizeGenre(opts.genre) : null;
 
     const rows = await listingRepo.listListingsBySellerId(sellerUserId, {
         limit,

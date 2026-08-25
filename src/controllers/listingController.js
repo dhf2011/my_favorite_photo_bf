@@ -16,7 +16,7 @@ export async function create(req, res, next) {
 }
 
 // 리스팅 목록 조회 (전체 판매 목록)
-// 쿼리: limit, cursor, status (ACTIVE | SOLD_OUT), grade (common|rare|epic|legendary), genre, sortBy (reg_date|price), sortOrder
+// 쿼리: limit, cursor, status (ACTIVE | SOLD_OUT), grade (common|rare|superrare|legendary), genre (풍경|음식|인물|동물), sortBy (reg_date|price), sortOrder
 export async function list(req, res, next) {
     try {
         const limit = req.query?.limit;

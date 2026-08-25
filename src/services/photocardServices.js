@@ -7,44 +7,12 @@ import {
   countByUserIdFiltered,
   countGradesByUserId,
 } from '../repositories/userCardRepository.js';
-
-const ALLOWED_GRADES = new Set(['common', 'rare', 'superrare', 'legendary']);
-const ALLOWED_GENRES = new Set([
-  '음식',
-  '풍경',
-  '동물',
-  '인물',
-]);
-
-function normalizeGrade(value) {
-  const v = String(value ?? '')
-    .trim()
-    .toLowerCase();
-  return v || '';
-}
-
-function normalizeGenre(value) {
-  const v = String(value ?? '').trim();
-  return v || '';
-}
-
-function assertAllowedGrade(grade) {
-  if (!ALLOWED_GRADES.has(grade)) {
-    const err = new Error('INVALID_GRADE');
-    err.status = 400;
-    err.meta = { allowed: Array.from(ALLOWED_GRADES) };
-    throw err;
-  }
-}
-
-function assertAllowedGenre(genre) {
-  if (!ALLOWED_GENRES.has(genre)) {
-    const err = new Error('INVALID_GENRE');
-    err.status = 400;
-    err.meta = { allowed: Array.from(ALLOWED_GENRES) };
-    throw err;
-  }
-}
+import {
+  normalizeGrade,
+  normalizeGenre,
+  assertAllowedGrade,
+  assertAllowedGenre,
+} from '../constants/photoCardEnums.js';
 
 function normalizeToPath(imageUrl) {
   const raw = String(imageUrl || '').trim();
@@ -87,26 +55,25 @@ function mapUserCardRow(row) {
     name: row.name,
     description: row.description,
     genre: row.genre,
-    grade: row.grade, // DB: common/rare/epic/legendary
+    grade: row.grade, // DB: common/rare/superrare/legendary
     minPrice: Number(row.min_price),
     imageUrl: row.image_url,
     creatorUserId: Number(row.creator_user_id),
   };
 }
 
-// ✅ counts: DB epic -> FE superRare
 function buildCounts(rows) {
   const counts = { total: 0, common: 0, rare: 0, superRare: 0, legendary: 0 };
 
   for (const r of rows) {
-    const g = String(r.grade || '').toLowerCase();
+    const g = normalizeGrade(r.grade);
     const qty = Number(r.qty || 0);
 
     counts.total += qty;
 
     if (g === 'common') counts.common += qty;
     else if (g === 'rare') counts.rare += qty;
-    else if (g === 'epic') counts.superRare += qty;
+    else if (g === 'superrare') counts.superRare += qty;
     else if (g === 'legendary') counts.legendary += qty;
   }
 
@@ -425,8 +392,10 @@ async function listUserPhotoCards(userId, opts = {}) {
   const pageSize = Math.min(50, Math.max(1, Number(opts.pageSize || 15)));
 
   const search = String(opts.search || '').trim();
-  const grade = String(opts.grade || 'ALL').trim();
-  const genre = String(opts.genre || 'ALL').trim();
+  const gradeRaw = String(opts.grade || 'ALL').trim();
+  const genreRaw = String(opts.genre || 'ALL').trim();
+  const grade = !gradeRaw || gradeRaw.toUpperCase() === 'ALL' ? 'ALL' : normalizeGrade(gradeRaw);
+  const genre = !genreRaw || genreRaw.toUpperCase() === 'ALL' ? 'ALL' : normalizeGenre(genreRaw);
 
   const rows = await findPagedByUserId({
     userId,
@@ -481,6 +450,16 @@ export async function createPhotoCardWithUserCard(creatorUserId, payload) {
     err.meta = { field: 'totalSupply', rule: 'cannot exceed 10' };
     throw err;
   }
+
+  if (!name || !genre || !grade) {
+    const err = new Error('VALIDATION_ERROR');
+    err.status = 400;
+    err.meta = { required: ['name', 'genre', 'grade'] };
+    throw err;
+  }
+
+  assertAllowedGenre(genre);
+  assertAllowedGrade(grade);
 
   const imagePath = normalizeToPath(imageUrl);
 

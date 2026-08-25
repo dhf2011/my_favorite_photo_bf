@@ -75,7 +75,7 @@ export async function findPagedByUserId({
 
   if (grade && grade !== 'ALL') {
     where.push('pc.grade = ?');
-    params.push(String(grade).trim().toLowerCase()); // DB는 소문자 기준
+    params.push(String(grade).trim().toLowerCase().replace(/[\s_-]+/g, ''));
   }
 
   if (genre && genre !== 'ALL') {
@@ -125,7 +125,7 @@ export async function countByUserIdFiltered({ userId, search, grade, genre }) {
 
   if (grade && grade !== 'ALL') {
     where.push('pc.grade = ?');
-    params.push(String(grade).trim().toLowerCase());
+    params.push(String(grade).trim().toLowerCase().replace(/[\s_-]+/g, ''));
   }
 
   if (genre && genre !== 'ALL') {

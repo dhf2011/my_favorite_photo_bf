@@ -30,14 +30,14 @@ GET http://localhost:3000/api/listings?limit=10&status=
 ### 리스팅 목록 조회 - 등급 필터 (common | rare | superrare | legendary)
 GET http://localhost:3000/api/listings?limit=10&status=ACTIVE&grade=rare
 
-### 리스팅 목록 조회 - 장르 필터 (풍경, 음식, ...)
-GET http://localhost:3000/api/listings?limit=10&status=ACTIVE&genre=앨범
+### 리스팅 목록 조회 - 장르 필터 (풍경, 음식, 인물, 동물)
+GET http://localhost:3000/api/listings?limit=10&status=ACTIVE&genre=풍경
 
 ### 리스팅 목록 조회 - 솔드아웃만 (status=SOLD_OUT)
 GET http://localhost:3000/api/listings?limit=10&status=SOLD_OUT
 
 ### 리스팅 목록 조회 - 등급+장르+가격순 조합
-GET http://localhost:3000/api/listings?limit=10&status=ACTIVE&grade=epic&genre=팬싸&sortBy=price&sortOrder=ASC
+GET http://localhost:3000/api/listings?limit=10&status=ACTIVE&grade=superrare&genre=인물&sortBy=price&sortOrder=ASC
 
 ### 리스팅 상세 조회
 GET http://localhost:3000/api/listings/2

@@ -31,7 +31,7 @@ Cookie: token={{token}}
 
 ###
 
-### 등급 필터 (common | rare | epic | legendary)
+### 등급 필터 (common | rare | superrare | legendary)
 GET {{baseUrl}}/users/me/listings?status=ACTIVE&grade=rare
 Cookie: token={{token}}
 
@@ -56,5 +56,5 @@ Cookie: token={{token}}
 ###
 
 ### 등급 + 장르 + 가격순 조합
-GET {{baseUrl}}/users/me/listings?status=ACTIVE&grade=epic&genre=팬싸&sortBy=price&sortOrder=DESC
+GET {{baseUrl}}/users/me/listings?status=ACTIVE&grade=superrare&genre=인물&sortBy=price&sortOrder=DESC
 Cookie: token={{token}}

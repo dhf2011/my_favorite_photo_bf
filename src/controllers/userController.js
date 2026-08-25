@@ -86,7 +86,7 @@ export async function getMyCards(req, res, next) {
 /**
  * GET /users/me/listings
  * 로그인한 유저가 판매 중인 카드 목록. Cookie 필요.
- * 쿼리: status (ACTIVE | SOLD_OUT), grade (common|rare|epic|legendary), genre (앨범|팬싸|...), sortBy (reg_date|price), sortOrder, limit, cursor
+ * 쿼리: status (ACTIVE | SOLD_OUT), grade (common|rare|superrare|legendary), genre (풍경|음식|인물|동물), sortBy (reg_date|price), sortOrder, limit, cursor
  */
 export async function getMyListings(req, res, next) {
   try {

@@ -90,7 +90,7 @@ async function listListings({
     const statusFilter = status ? "AND l.status = ?" : "";
     const statusParam = status ? [status] : [];
     const gradeFilter = grade ? "AND pc.grade = ?" : "";
-    const gradeParam = grade ? [String(grade).trim().toLowerCase()] : [];
+    const gradeParam = grade ? [String(grade).trim().toLowerCase().replace(/[\s_-]+/g, "")] : [];
     const genreFilter = genre ? "AND pc.genre = ?" : "";
     const genreParam = genre ? [String(genre).trim()] : [];
 
@@ -174,7 +174,7 @@ async function listListingsBySellerId(sellerUserId, {
     const statusFilter = status ? "AND l.status = ?" : "";
     const statusParam = status ? [status] : [];
     const gradeFilter = grade ? "AND pc.grade = ?" : "";
-    const gradeParam = grade ? [String(grade).trim().toLowerCase()] : [];
+    const gradeParam = grade ? [String(grade).trim().toLowerCase().replace(/[\s_-]+/g, "")] : [];
     const genreFilter = genre ? "AND pc.genre = ?" : "";
     const genreParam = genre ? [String(genre).trim()] : [];
 

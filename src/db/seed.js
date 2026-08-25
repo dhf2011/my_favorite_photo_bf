@@ -50,13 +50,20 @@ async function seed() {
       );
     }
 
+    await conn.query(
+      "UPDATE photo_card SET grade = 'common' WHERE LOWER(REPLACE(REPLACE(grade, ' ', ''), '_', '')) = 'epic'",
+    );
+    await conn.query(
+      "UPDATE listing SET desired_grade = 'common' WHERE LOWER(REPLACE(REPLACE(IFNULL(desired_grade, ''), ' ', ''), '_', '')) = 'epic'",
+    );
+
     const cards = [
-      [u1, "핑크 앨범 포카", "2024 앨범 미공포", "앨범", "rare", 10000, 10, "/public/users/1/photocards/seed-album-rare.jpg"],
-      [u1, "팬싸 특전 카드", "팬싸인회 특전", "팬싸", "epic", 25000, 5, "/public/users/1/photocards/seed-fansign-epic.jpg"],
-      [u2, "콘서트 포토카드", "서울 콘서트 MD", "콘서트", "legendary", 50000, 3, "/public/users/2/photocards/seed-concert-legend.jpg"],
-      [u2, "시즌그리팅 세트", "2025 시즌그리팅", "시즌그리팅", "common", 5000, 20, "/public/users/2/photocards/seed-sg-common.jpg"],
-      [u3, "콜라보 한정판", "브랜드 콜라보", "콜라보", "epic", 30000, 8, "/public/users/3/photocards/seed-collab-epic.jpg"],
-      [u3, "팬클럽 키트 포카", "공식 팬클럽 키트", "팬클럽", "rare", 12000, 15, "/public/users/3/photocards/seed-fanclub-rare.jpg"],
+      [u1, "핑크 앨범 포카", "2024 앨범 미공포", "인물", "rare", 10000, 10, "/public/users/1/photocards/seed-album-rare.jpg"],
+      [u1, "팬싸 특전 카드", "팬싸인회 특전", "인물", "common", 25000, 5, "/public/users/1/photocards/seed-fansign-epic.jpg"],
+      [u2, "콘서트 포토카드", "서울 콘서트 MD", "풍경", "legendary", 50000, 3, "/public/users/2/photocards/seed-concert-legend.jpg"],
+      [u2, "시즌그리팅 세트", "2025 시즌그리팅", "음식", "common", 5000, 20, "/public/users/2/photocards/seed-sg-common.jpg"],
+      [u3, "콜라보 한정판", "브랜드 콜라보", "풍경", "common", 30000, 8, "/public/users/3/photocards/seed-collab-epic.jpg"],
+      [u3, "팬클럽 키트 포카", "공식 팬클럽 키트", "동물", "rare", 12000, 15, "/public/users/3/photocards/seed-fanclub-rare.jpg"],
     ];
 
     const photoCardIds = [];
@@ -67,6 +74,12 @@ async function seed() {
       );
       if (exist.length) {
         photoCardIds.push(Number(exist[0].photo_card_id));
+        await conn.query(
+          `UPDATE photo_card
+           SET description = ?, genre = ?, grade = ?, min_price = ?, total_supply = ?, image_url = ?
+           WHERE photo_card_id = ?`,
+          [c[2], c[3], c[4], c[5], c[6], c[7], exist[0].photo_card_id],
+        );
       } else {
         const [r] = await conn.query(
           `INSERT INTO photo_card
