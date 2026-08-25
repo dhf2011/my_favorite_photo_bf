@@ -1,4 +1,5 @@
 import listingRepo from "../repositories/listingRepository.js";
+import { pool } from "../db/mysql.js";
 import {
     normalizeGrade,
     normalizeGenre,
@@ -39,42 +40,6 @@ async function createListing(sellerUserId, payload) {
         throw err;
     }
 
-    // user_card 존재 및 소유권 확인
-    const userCard = await listingRepo.getUserCardById(userCardId);
-    if (!userCard) {
-        const err = new Error("NOT_FOUND");
-        err.status = 404;
-        err.meta = { message: "user_card not found" };
-        throw err;
-    }
-
-    if (Number(userCard.user_id) !== sellerUserId) {
-        const err = new Error("FORBIDDEN");
-        err.status = 403;
-        err.meta = { reason: "NOT_OWNER" };
-        throw err;
-    }
-
-    // 발행량 이내인지 확인
-    if (quantity > userCard.quantity) {
-        const err = new Error("VALIDATION_ERROR");
-        err.status = 400;
-        err.meta = {
-            field: "quantity",
-            rule: `cannot exceed owned quantity (${userCard.quantity})`,
-        };
-        throw err;
-    }
-
-    // 이미 활성 리스팅이 있는지 확인
-    const existingListing = await listingRepo.getActiveListingByUserCardId(userCardId);
-    if (existingListing) {
-        const err = new Error("CONFLICT");
-        err.status = 409;
-        err.meta = { message: "Active listing already exists for this user_card" };
-        throw err;
-    }
-
     let desiredGrade = payload?.desiredGrade != null ? String(payload.desiredGrade).trim() || null : null;
     let desiredGenre = payload?.desiredGenre != null ? String(payload.desiredGenre).trim() || null : null;
     const desiredDesc = payload?.desiredDesc != null ? String(payload.desiredDesc).trim() || null : null;
@@ -88,20 +53,74 @@ async function createListing(sellerUserId, payload) {
         assertAllowedGenre(desiredGenre);
     }
 
-    const listingId = await listingRepo.createListing({
-        userCardId,
-        sellerUserId,
-        saleType: "SELL",
-        status: "ACTIVE",
-        quantity,
-        pricePerUnit,
-        desiredGrade,
-        desiredGenre,
-        desiredDesc,
-    });
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
 
-    const listing = await listingRepo.getListingById(listingId);
-    return mapRow(listing);
+        const userCard = await listingRepo.getUserCardById(userCardId, conn, { forUpdate: true });
+        if (!userCard) {
+            const err = new Error("NOT_FOUND");
+            err.status = 404;
+            err.meta = { message: "user_card not found" };
+            throw err;
+        }
+
+        if (Number(userCard.user_id) !== sellerUserId) {
+            const err = new Error("FORBIDDEN");
+            err.status = 403;
+            err.meta = { reason: "NOT_OWNER" };
+            throw err;
+        }
+
+        if (quantity > userCard.quantity) {
+            const err = new Error("VALIDATION_ERROR");
+            err.status = 400;
+            err.meta = {
+                field: "quantity",
+                rule: `cannot exceed owned quantity (${userCard.quantity})`,
+            };
+            throw err;
+        }
+
+        const existingByUserCard = await listingRepo.getActiveListingByUserCardId(userCardId, conn);
+        const existingByPhoto = await listingRepo.getActiveListingBySellerAndPhotoCardId(
+            sellerUserId,
+            Number(userCard.photo_card_id),
+            conn,
+        );
+        if (existingByUserCard || existingByPhoto) {
+            const err = new Error("CONFLICT");
+            err.status = 409;
+            err.meta = { message: "Active listing already exists for this card" };
+            throw err;
+        }
+
+        const listingId = await listingRepo.createListing({
+            userCardId,
+            sellerUserId,
+            saleType: "SELL",
+            status: "ACTIVE",
+            quantity,
+            pricePerUnit,
+            desiredGrade,
+            desiredGenre,
+            desiredDesc,
+            conn,
+        });
+
+        await conn.commit();
+        const listing = await listingRepo.getListingById(listingId);
+        return mapRow(listing);
+    } catch (err) {
+        try {
+            await conn.rollback();
+        } catch {
+            // ignore rollback errors
+        }
+        throw err;
+    } finally {
+        conn.release();
+    }
 }
 
 // 리스팅 목록 조회 (전체 판매 목록)

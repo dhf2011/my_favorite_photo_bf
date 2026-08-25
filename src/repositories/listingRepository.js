@@ -11,6 +11,7 @@ async function createListing({
     desiredGrade = null,
     desiredGenre = null,
     desiredDesc = null,
+    conn = pool,
 }) {
     const sql = `
         INSERT INTO listing
@@ -18,7 +19,7 @@ async function createListing({
         VALUES
             (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    const [result] = await pool.query(sql, [
+    const [result] = await conn.query(sql, [
         userCardId,
         sellerUserId,
         saleType,
@@ -281,19 +282,34 @@ async function deleteListing(listingId) {
 }
 
 // user_card_id로 리스팅 조회 (중복 등록 방지용)
-async function getActiveListingByUserCardId(userCardId) {
+async function getActiveListingByUserCardId(userCardId, conn = pool) {
     const sql = `
         SELECT *
         FROM listing
         WHERE user_card_id = ? AND status = 'ACTIVE'
         LIMIT 1
     `;
-    const [rows] = await pool.query(sql, [userCardId]);
+    const [rows] = await conn.query(sql, [userCardId]);
+    return rows[0] ?? null;
+}
+
+// 같은 판매자 + 같은 포토카드의 활성 리스팅 (중복 등록 방지용)
+async function getActiveListingBySellerAndPhotoCardId(sellerUserId, photoCardId, conn = pool) {
+    const sql = `
+        SELECT l.*
+        FROM listing l
+        JOIN user_card uc ON l.user_card_id = uc.user_card_id
+        WHERE l.seller_user_id = ?
+          AND uc.photo_card_id = ?
+          AND l.status = 'ACTIVE'
+        LIMIT 1
+    `;
+    const [rows] = await conn.query(sql, [sellerUserId, photoCardId]);
     return rows[0] ?? null;
 }
 
 // user_card 정보 조회 (소유권 확인용)
-async function getUserCardById(userCardId) {
+async function getUserCardById(userCardId, conn = pool, { forUpdate = false } = {}) {
     const sql = `
         SELECT
             uc.user_card_id,
@@ -305,8 +321,9 @@ async function getUserCardById(userCardId) {
         JOIN photo_card pc ON uc.photo_card_id = pc.photo_card_id
         WHERE uc.user_card_id = ?
         LIMIT 1
+        ${forUpdate ? "FOR UPDATE" : ""}
     `;
-    const [rows] = await pool.query(sql, [userCardId]);
+    const [rows] = await conn.query(sql, [userCardId]);
     return rows[0] ?? null;
 }
 
@@ -318,5 +335,6 @@ export default {
     updateListing,
     deleteListing,
     getActiveListingByUserCardId,
+    getActiveListingBySellerAndPhotoCardId,
     getUserCardById,
 };
