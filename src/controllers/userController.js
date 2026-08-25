@@ -121,15 +121,14 @@ export async function getMyListings(req, res, next) {
 
 /**
  * POST /users/logout
- * Clear JWT cookie
+ * Clear JWT cookie (must match the options used in res.cookie)
  */
 export function logout(req, res) {
   res.clearCookie(JWT_COOKIE_NAME, {
-    path: "/",
-    httpOnly: true,
-    sameSite: "none",
-    secure: true,
-    domain: "be-1-yqrf.onrender.com",
+    path: COOKIE_OPTIONS.path,
+    httpOnly: COOKIE_OPTIONS.httpOnly,
+    secure: COOKIE_OPTIONS.secure,
+    sameSite: COOKIE_OPTIONS.sameSite,
   });
 
   return res.status(200).json({ ok: true, message: "로그아웃되었습니다." });

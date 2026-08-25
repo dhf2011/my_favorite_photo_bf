@@ -92,7 +92,7 @@ async function drawPointBox(userId) {
     // 3. 1시간이 지났거나 첫 뽑기인 경우에만 포인트 지급 진행
 
     // 4. 랜덤 포인트 생성 (1 이상의 값) - 1시간이 지난 경우에만 실행됨
-    const earnedPoints = Math.floor(Math.random() * 10) + 1; // 1~10 포인트
+    const earnedPoints = Math.floor(Math.random() * (50000 - 1000 + 1)) + 1000; // 1000~50000 포인트
 
     // 5. 포인트 내역 생성 (트랜잭션 내에서)
     const pointHistoryId = await pointHistoryRepo.createPointHistory({
