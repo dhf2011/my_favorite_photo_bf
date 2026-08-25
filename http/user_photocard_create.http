@@ -1,0 +1,99 @@
+### 로그인한 유저 카드 등록
+### 1) 로그인 실행 → 응답의 user.id 확인 후 @creatorUserId 에 넣기, Set-Cookie의 token 값을 @token 에 넣기
+### 2) "카드 등록" 요청 실행 (Cookie 필요)
+
+@baseUrl = http://localhost:3000
+@contentType = application/json
+@token =
+@creatorUserId = 5
+
+###
+
+### 로그인
+POST {{baseUrl}}/users/login
+Content-Type: {{contentType}}
+
+{
+  "email": "test0202@naver.com",
+  "password": "12345678"
+}
+
+###
+
+### 카드 등록 (multipart, 이미지 없이)
+POST {{baseUrl}}/api/photo-cards
+Cookie: token={{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="creatorUserId"
+
+{{creatorUserId}}
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="name"
+
+피카츄
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="genre"
+
+앨범
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="grade"
+
+common
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="totalSupply"
+
+5
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="description"
+
+로그인 유저 카드 등록 테스트
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="minPrice"
+
+10000
+------WebKitFormBoundary7MA4YWxkTrZu0gW--
+
+###
+
+### 카드 등록 (이미지 파일 포함 시)
+### name="file"; filename="이미지파일경로" 아래에 실제 파일 경로 지정 (예: < ./test.jpg)
+POST {{baseUrl}}/api/photo-cards
+Cookie: token={{token}}
+Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW
+
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="creatorUserId"
+
+{{creatorUserId}}
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="name"
+
+잠만보
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="genre"
+
+동물
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="grade"
+
+rare
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="totalSupply"
+
+3
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="description"
+
+이미지 포함 등록
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="minPrice"
+
+15000
+------WebKitFormBoundary7MA4YWxkTrZu0gW
+Content-Disposition: form-data; name="file"; filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test.jpg
+------WebKitFormBoundary7MA4YWxkTrZu0gW--

@@ -1,0 +1,25 @@
+### point_box_draw 관련 API 테스트
+### .env의 PORT에 맞게 @baseUrl 수정
+
+@baseUrl = http://localhost:3000
+@userId = 2
+
+### 포인트 뽑기
+POST {{baseUrl}}/api/point-box-draws/draw
+Content-Type: application/json
+
+{
+  "userId": {{userId}}
+}
+
+### 포인트 뽑기 내역 조회
+GET {{baseUrl}}/api/point-box-draws/draw-history?userId={{userId}}
+
+### 포인트 내역 조회
+GET {{baseUrl}}/api/point-box-draws/history?userId={{userId}}
+
+### 유저 포인트 조회
+GET {{baseUrl}}/api/point-box-draws/user?userId={{userId}}
+
+### 포인트 뽑기 목록 조회 (관리자용)
+GET {{baseUrl}}/api/point-box-draws

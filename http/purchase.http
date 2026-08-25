@@ -1,0 +1,27 @@
+### 카드 구매 / 판매 API
+### .env PORT에 맞게 @baseUrl 수정
+
+@baseUrl = http://localhost:3000
+@buyerUserId = 2
+@sellerUserId = 1
+@listingId = 1
+@purchaseId = 1
+
+### 카드 구매 (포인트 결제)
+POST {{baseUrl}}/api/purchases
+Content-Type: application/json
+
+{
+  "buyerUserId": {{buyerUserId}},
+  "listingId": {{listingId}},
+  "quantity": 1
+}
+
+### 구매 내역 조회 (구매자)
+GET {{baseUrl}}/api/purchases/buyer?buyerUserId={{buyerUserId}}
+
+### 판매 내역 조회 (판매자)
+GET {{baseUrl}}/api/purchases/seller?sellerUserId={{sellerUserId}}
+
+### 구매 상세 조회
+GET {{baseUrl}}/api/purchases/{{purchaseId}}
