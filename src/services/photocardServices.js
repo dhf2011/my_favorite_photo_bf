@@ -13,11 +13,11 @@ import {
   assertAllowedGrade,
   assertAllowedGenre,
 } from '../constants/photoCardEnums.js';
-import { photocardImageUrl, hashImageBuffer } from '../utils/photocardImage.js';
+import { photocardImageUrl, hashImageBuffer, resizePhotocardImage } from '../utils/photocardImage.js';
 
 const ALLOWED_IMAGE_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
-function parseImageInput(file, imageUrl) {
+async function parseImageInput(file, imageUrl) {
   if (file?.buffer?.length) {
     const mime = String(file.mimetype || '').trim();
     if (!ALLOWED_IMAGE_MIME.has(mime)) {
@@ -26,10 +26,16 @@ function parseImageInput(file, imageUrl) {
       err.meta = { allowed: Array.from(ALLOWED_IMAGE_MIME) };
       throw err;
     }
+    const resized = await resizePhotocardImage(file.buffer, mime).catch((cause) => {
+      const err = new Error('INVALID_IMAGE');
+      err.status = 400;
+      err.meta = { cause: cause?.message };
+      throw err;
+    });
     return {
-      data: file.buffer,
-      mime,
-      hash: hashImageBuffer(file.buffer),
+      data: resized.data,
+      mime: resized.mime,
+      hash: hashImageBuffer(resized.data),
     };
   }
 
@@ -39,7 +45,17 @@ function parseImageInput(file, imageUrl) {
     const mime = dataUri[1].toLowerCase();
     const data = Buffer.from(dataUri[2], 'base64');
     if (!data.length) return null;
-    return { data, mime, hash: hashImageBuffer(data) };
+    const resized = await resizePhotocardImage(data, mime).catch((cause) => {
+      const err = new Error('INVALID_IMAGE');
+      err.status = 400;
+      err.meta = { cause: cause?.message };
+      throw err;
+    });
+    return {
+      data: resized.data,
+      mime: resized.mime,
+      hash: hashImageBuffer(resized.data),
+    };
   }
 
   return null;
@@ -138,7 +154,7 @@ async function createPhotoCard(creatorUserId, payload) {
 
   const minPrice = payload?.minPrice != null ? Number(payload.minPrice) : 0;
 
-  const image = parseImageInput(payload?.imageFile, payload?.imageUrl);
+  const image = await parseImageInput(payload?.imageFile, payload?.imageUrl);
   if (!image) {
     const err = new Error('VALIDATION_ERROR');
     err.status = 400;
@@ -382,7 +398,7 @@ async function updatePhotoCard(photoCardId, creatorUserId, patch) {
   }
 
   if (patch?.imageFile !== undefined || patch?.imageUrl !== undefined) {
-    const image = parseImageInput(patch.imageFile, patch.imageUrl);
+    const image = await parseImageInput(patch.imageFile, patch.imageUrl);
     if (!image) {
       const err = new Error('VALIDATION_ERROR');
       err.status = 400;
