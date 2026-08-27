@@ -6,6 +6,7 @@ import {
     assertAllowedGrade,
     assertAllowedGenre,
 } from "../constants/photoCardEnums.js";
+import { photocardImageUrl } from "../utils/photocardImage.js";
 
 // 리스팅 생성
 async function createListing(sellerUserId, payload) {
@@ -389,7 +390,7 @@ function mapRow(row) {
             genre: row.genre,
             grade: row.grade,
             minPrice: Number(row.min_price),
-            imageUrl: row.image_url,
+            imageUrl: photocardImageUrl(row.photo_card_id),
             creatorUserId: Number(row.creator_user_id),
         },
     };

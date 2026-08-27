@@ -78,16 +78,21 @@ async function seed() {
           `UPDATE photo_card
            SET description = ?, genre = ?, grade = ?, min_price = ?, total_supply = ?, image_url = ?
            WHERE photo_card_id = ?`,
-          [c[2], c[3], c[4], c[5], c[6], c[7], exist[0].photo_card_id],
+          [c[2], c[3], c[4], c[5], c[6], `/api/photo-cards/${exist[0].photo_card_id}/image`, exist[0].photo_card_id],
         );
       } else {
         const [r] = await conn.query(
           `INSERT INTO photo_card
             (creator_user_id, name, description, genre, grade, min_price, total_supply, image_url)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          c,
+          [c[0], c[1], c[2], c[3], c[4], c[5], c[6], "pending"],
         );
-        photoCardIds.push(Number(r.insertId));
+        const photoCardId = Number(r.insertId);
+        await conn.query(
+          "UPDATE photo_card SET image_url = ? WHERE photo_card_id = ?",
+          [`/api/photo-cards/${photoCardId}/image`, photoCardId],
+        );
+        photoCardIds.push(photoCardId);
       }
     }
     const [pc1, pc2, pc3, pc4, pc5, pc6] = photoCardIds;

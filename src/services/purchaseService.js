@@ -2,6 +2,7 @@ import { pool } from "../db/mysql.js";
 import purchaseRepo from "../repositories/purchaseRepository.js";
 import pointHistoryRepo from "../repositories/pointHistoryRepository.js";
 import notificationRepo from "../repositories/notificationRepository.js";
+import { applyPhotocardImageUrl } from "../utils/photocardImage.js";
 
 /**
  * 카드 구매 (포인트 결제)
@@ -191,7 +192,7 @@ async function purchaseCard(buyerUserId, listingId, quantity) {
       entityId: purchaseId,
     });
 
-    const purchase = await purchaseRepo.getPurchaseById(purchaseId);
+    const purchase = applyPhotocardImageUrl(await purchaseRepo.getPurchaseById(purchaseId));
     return {
       purchaseId,
       buyerUserId,
@@ -222,7 +223,7 @@ async function getPurchaseById(purchaseId) {
     e.status = 404;
     throw e;
   }
-  return p;
+  return applyPhotocardImageUrl(p);
 }
 
 async function getPurchasesByBuyer(buyerUserId, { limit = 50, offset = 0 } = {}) {
@@ -231,7 +232,9 @@ async function getPurchasesByBuyer(buyerUserId, { limit = 50, offset = 0 } = {})
     e.status = 400;
     throw e;
   }
-  return purchaseRepo.getPurchasesByBuyerId(buyerUserId, { limit, offset });
+  return purchaseRepo.getPurchasesByBuyerId(buyerUserId, { limit, offset }).then((rows) =>
+    rows.map(applyPhotocardImageUrl)
+  );
 }
 
 async function getPurchasesBySeller(sellerUserId, { limit = 50, offset = 0 } = {}) {
@@ -240,7 +243,9 @@ async function getPurchasesBySeller(sellerUserId, { limit = 50, offset = 0 } = {
     e.status = 400;
     throw e;
   }
-  return purchaseRepo.getPurchasesBySellerId(sellerUserId, { limit, offset });
+  return purchaseRepo.getPurchasesBySellerId(sellerUserId, { limit, offset }).then((rows) =>
+    rows.map(applyPhotocardImageUrl)
+  );
 }
 
 export default {

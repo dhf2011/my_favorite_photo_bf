@@ -13,19 +13,36 @@ import {
   assertAllowedGrade,
   assertAllowedGenre,
 } from '../constants/photoCardEnums.js';
+import { photocardImageUrl, hashImageBuffer } from '../utils/photocardImage.js';
 
-function normalizeToPath(imageUrl) {
-  const raw = String(imageUrl || '').trim();
-  if (!raw) return '';
+const ALLOWED_IMAGE_MIME = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
-  if (raw.startsWith('http://') || raw.startsWith('https://')) {
-    try {
-      return new URL(raw).pathname;
-    } catch {
-      return '';
+function parseImageInput(file, imageUrl) {
+  if (file?.buffer?.length) {
+    const mime = String(file.mimetype || '').trim();
+    if (!ALLOWED_IMAGE_MIME.has(mime)) {
+      const err = new Error('UNSUPPORTED_FILE_TYPE');
+      err.status = 400;
+      err.meta = { allowed: Array.from(ALLOWED_IMAGE_MIME) };
+      throw err;
     }
+    return {
+      data: file.buffer,
+      mime,
+      hash: hashImageBuffer(file.buffer),
+    };
   }
-  return raw;
+
+  const raw = String(imageUrl || '').trim();
+  const dataUri = raw.match(/^data:(image\/(?:png|jpeg|webp));base64,(.+)$/i);
+  if (dataUri) {
+    const mime = dataUri[1].toLowerCase();
+    const data = Buffer.from(dataUri[2], 'base64');
+    if (!data.length) return null;
+    return { data, mime, hash: hashImageBuffer(data) };
+  }
+
+  return null;
 }
 
 function mapRow(row) {
@@ -38,7 +55,7 @@ function mapRow(row) {
     grade: row.grade,
     minPrice: Number(row.min_price),
     totalSupply: Number(row.total_supply),
-    imageUrl: row.image_url,
+    imageUrl: photocardImageUrl(row.photo_card_id),
     regDate: row.reg_date,
     uptDate: row.upt_date,
   };
@@ -57,7 +74,7 @@ function mapUserCardRow(row) {
     genre: row.genre,
     grade: row.grade, // DB: common/rare/superrare/legendary
     minPrice: Number(row.min_price),
-    imageUrl: row.image_url,
+    imageUrl: photocardImageUrl(row.photo_card_id),
     creatorUserId: Number(row.creator_user_id),
   };
 }
@@ -121,20 +138,11 @@ async function createPhotoCard(creatorUserId, payload) {
 
   const minPrice = payload?.minPrice != null ? Number(payload.minPrice) : 0;
 
-  const imageUrl = (payload?.imageUrl && String(payload.imageUrl).trim()) || '';
-  if (!imageUrl) {
+  const image = parseImageInput(payload?.imageFile, payload?.imageUrl);
+  if (!image) {
     const err = new Error('VALIDATION_ERROR');
     err.status = 400;
-    err.meta = { required: ['imageUrl'] };
-    throw err;
-  }
-
-  const expectedPathPrefix = `/public/users/${creatorUserId}/photocards/`;
-  const imagePath = normalizeToPath(imageUrl);
-  if (!imagePath.startsWith(expectedPathPrefix)) {
-    const err = new Error('INVALID_IMAGE_URL');
-    err.status = 400;
-    err.meta = { expectedPathPrefix };
+    err.meta = { required: ['file'], note: 'png/jpeg/webp, max 5MB' };
     throw err;
   }
 
@@ -146,7 +154,7 @@ async function createPhotoCard(creatorUserId, payload) {
     genre,
     grade,
     minPrice,
-    imageUrl: imagePath,
+    imageHash: image.hash,
   });
 
   let id;
@@ -174,7 +182,13 @@ async function createPhotoCard(creatorUserId, payload) {
       grade,
       minPrice,
       totalSupply,
-      imageUrl: imagePath,
+      imageUrl: '',
+      imageData: image.data,
+      imageMime: image.mime,
+      imageHash: image.hash,
+    });
+    await photocardRepo.updatePhotoCardById(id, {
+      imageUrl: photocardImageUrl(id),
     });
   }
 
@@ -188,7 +202,7 @@ async function createPhotoCard(creatorUserId, payload) {
   const actualTotalSupply = await getTotalQuantityByPhotoCardId(id);
   await photocardRepo.updateTotalSupply(id, actualTotalSupply);
 
-  return { photoCardId: id, imageUrl: imagePath };
+  return { photoCardId: id, imageUrl: photocardImageUrl(id) };
 }
 
 // =========================
@@ -243,6 +257,35 @@ async function getPhotoCardById(photoCardId) {
   }
 
   return mapRow(row);
+}
+
+async function getPhotoCardImage(photoCardId) {
+  const id = Number(photoCardId);
+  if (!Number.isInteger(id) || id <= 0) {
+    const err = new Error('VALIDATION_ERROR');
+    err.status = 400;
+    err.meta = { field: 'id', rule: 'must be a positive integer' };
+    throw err;
+  }
+
+  const row = await photocardRepo.getPhotoCardImageById(id);
+  if (!row) {
+    const err = new Error('NOT_FOUND');
+    err.status = 404;
+    err.meta = { photoCardId: id };
+    throw err;
+  }
+  if (!row.image_data) {
+    const err = new Error('IMAGE_NOT_FOUND');
+    err.status = 404;
+    err.meta = { photoCardId: id };
+    throw err;
+  }
+
+  return {
+    data: row.image_data,
+    mime: row.image_mime || 'application/octet-stream',
+  };
 }
 
 async function updatePhotoCard(photoCardId, creatorUserId, patch) {
@@ -338,25 +381,18 @@ async function updatePhotoCard(photoCardId, creatorUserId, patch) {
     nextPatch.totalSupply = totalSupply;
   }
 
-  if (patch?.imageUrl !== undefined) {
-    const raw = (patch.imageUrl && String(patch.imageUrl).trim()) || '';
-    if (!raw) {
+  if (patch?.imageFile !== undefined || patch?.imageUrl !== undefined) {
+    const image = parseImageInput(patch.imageFile, patch.imageUrl);
+    if (!image) {
       const err = new Error('VALIDATION_ERROR');
       err.status = 400;
-      err.meta = { field: 'imageUrl', rule: 'cannot be empty' };
+      err.meta = { field: 'file', rule: 'png/jpeg/webp image required' };
       throw err;
     }
-
-    const expectedPathPrefix = `/public/users/${creatorUserId}/photocards/`;
-    const imagePath = normalizeToPath(raw);
-    if (!imagePath.startsWith(expectedPathPrefix)) {
-      const err = new Error('INVALID_IMAGE_URL');
-      err.status = 400;
-      err.meta = { expectedPathPrefix };
-      throw err;
-    }
-
-    nextPatch.imageUrl = imagePath;
+    nextPatch.imageData = image.data;
+    nextPatch.imageMime = image.mime;
+    nextPatch.imageHash = image.hash;
+    nextPatch.imageUrl = photocardImageUrl(id);
   }
 
   if (Object.keys(nextPatch).length === 0) {
@@ -430,94 +466,20 @@ async function listUserPhotoCards(userId, opts = {}) {
 // (옵션) create + user_card 같이 생성하는 기존 함수 유지
 // =========================
 export async function createPhotoCardWithUserCard(creatorUserId, payload) {
-  const name = String(payload?.name || '').trim();
-  const genre = normalizeGenre(payload?.genre);
-  const grade = normalizeGrade(payload?.grade);
-  const description = payload?.description ?? null;
-  const minPrice = payload?.minPrice ?? 0;
-  const imageUrl = (payload?.imageUrl && String(payload.imageUrl).trim()) || '';
-  const totalSupply = Number(payload?.totalSupply);
-
-  if (!Number.isFinite(totalSupply) || totalSupply <= 0) {
-    const err = new Error('VALIDATION_ERROR');
-    err.status = 400;
-    err.meta = { field: 'totalSupply', rule: 'must be positive number' };
-    throw err;
-  }
-  if (totalSupply > 10) {
-    const err = new Error('VALIDATION_ERROR');
-    err.status = 400;
-    err.meta = { field: 'totalSupply', rule: 'cannot exceed 10' };
-    throw err;
-  }
-
-  if (!name || !genre || !grade) {
-    const err = new Error('VALIDATION_ERROR');
-    err.status = 400;
-    err.meta = { required: ['name', 'genre', 'grade'] };
-    throw err;
-  }
-
-  assertAllowedGenre(genre);
-  assertAllowedGrade(grade);
-
-  const imagePath = normalizeToPath(imageUrl);
-
-  const existing = await photocardRepo.findDuplicatePhotoCard({
-    name,
-    description,
-    genre,
-    grade,
-    minPrice,
-    imageUrl: imagePath,
-  });
-
-  let photoCardId;
-  if (existing) {
-    const currentTotalQuantity = await getTotalQuantityByPhotoCardId(
-      existing.photo_card_id,
-    );
-    const newTotalSupply = currentTotalQuantity + totalSupply;
-    if (newTotalSupply > 10) {
-      const err = new Error('VALIDATION_ERROR');
-      err.status = 400;
-      err.meta = {
-        field: 'totalSupply',
-        rule: `cannot exceed 10 (current: ${currentTotalQuantity}, requested: ${totalSupply}, would be: ${newTotalSupply})`,
-      };
-      throw err;
-    }
-    photoCardId = existing.photo_card_id;
-  } else {
-    photoCardId = await photocardRepo.createPhotoCard({
-      creatorUserId,
-      name,
-      description,
-      genre,
-      grade,
-      minPrice,
-      totalSupply,
-      imageUrl: imagePath,
-    });
-  }
-
-  await createUserCard({
-    ownerId: creatorUserId,
-    photocardId: photoCardId,
+  const data = await createPhotoCard(creatorUserId, payload);
+  return {
+    photoCardId: data.photoCardId,
     createdUserId: creatorUserId,
-    quantity: totalSupply,
-  });
-
-  const actualTotalSupply = await getTotalQuantityByPhotoCardId(photoCardId);
-  await photocardRepo.updateTotalSupply(photoCardId, actualTotalSupply);
-
-  return { photoCardId, createdUserId: creatorUserId, quantity: totalSupply };
+    quantity: Number(payload?.totalSupply),
+    imageUrl: data.imageUrl,
+  };
 }
 
 export default {
   createPhotoCard,
   listPhotoCards,
   getPhotoCardById,
+  getPhotoCardImage,
   updatePhotoCard,
   listUserPhotoCards,
 };

@@ -21,12 +21,15 @@ async function createPhotoCard({
     minPrice,
     totalSupply,
     imageUrl,
+    imageData,
+    imageMime,
+    imageHash,
 }) {
     const sql = `
     INSERT INTO photo_card
-      (creator_user_id, name, description, genre, grade, min_price, total_supply, image_url)
+      (creator_user_id, name, description, genre, grade, min_price, total_supply, image_url, image_data, image_mime, image_hash)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
     const [result] = await pool.query(sql, [
         creatorUserId,
@@ -37,6 +40,9 @@ async function createPhotoCard({
         minPrice ?? 0,
         totalSupply,
         imageUrl,
+        imageData,
+        imageMime,
+        imageHash,
     ]);
 
     return result.insertId;
@@ -131,6 +137,18 @@ async function updatePhotoCardById(photoCardId, patch) {
         fields.push("image_url = ?");
         params.push(patch.imageUrl);
     }
+    if (patch.imageData !== undefined) {
+        fields.push("image_data = ?");
+        params.push(patch.imageData);
+    }
+    if (patch.imageMime !== undefined) {
+        fields.push("image_mime = ?");
+        params.push(patch.imageMime);
+    }
+    if (patch.imageHash !== undefined) {
+        fields.push("image_hash = ?");
+        params.push(patch.imageHash);
+    }
 
     if (fields.length === 0) {
         return 0;
@@ -146,8 +164,7 @@ async function updatePhotoCardById(photoCardId, patch) {
     return result.affectedRows;
 }
 
-// 동일한 포토카드 찾기 (name, description, genre, grade, min_price, image_url로 검색)
-async function findDuplicatePhotoCard({ name, description, genre, grade, minPrice, imageUrl }) {
+async function findDuplicatePhotoCard({ name, description, genre, grade, minPrice, imageHash }) {
     const sql = `
         SELECT photo_card_id, total_supply
         FROM photo_card
@@ -156,10 +173,21 @@ async function findDuplicatePhotoCard({ name, description, genre, grade, minPric
           AND genre = ?
           AND grade = ?
           AND min_price = ?
-          AND image_url = ?
+          AND image_hash = ?
         LIMIT 1
     `;
-    const [rows] = await pool.query(sql, [name, description, description, genre, grade, minPrice, imageUrl]);
+    const [rows] = await pool.query(sql, [name, description, description, genre, grade, minPrice, imageHash]);
+    return rows[0] ?? null;
+}
+
+async function getPhotoCardImageById(photoCardId) {
+    const sql = `
+    SELECT image_data, image_mime
+    FROM photo_card
+    WHERE photo_card_id = ?
+    LIMIT 1
+  `;
+    const [rows] = await pool.query(sql, [photoCardId]);
     return rows[0] ?? null;
 }
 
@@ -197,6 +225,7 @@ export default {
     createPhotoCard,
     listPhotoCards,
     getPhotoCardById,
+    getPhotoCardImageById,
     updatePhotoCardById,
     createPhotocard,
     findDuplicatePhotoCard,

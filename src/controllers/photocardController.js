@@ -12,10 +12,6 @@ export async function create(req, res, next) {
     console.log('DEBUG: creatorUserId (parsed):', creatorUserId);
 
     let imageUrl = req.body?.imageUrl;
-    if (req.file) {
-      imageUrl = `/public/users/${creatorUserId}/photocards/${req.file.filename}`;
-    }
-
     const data = await photocardService.createPhotoCard(creatorUserId, {
       name: req.body?.name,
       description: req.body?.description,
@@ -23,7 +19,8 @@ export async function create(req, res, next) {
       grade: req.body?.grade,
       minPrice: req.body?.minPrice,
       totalSupply: req.body?.totalSupply,
-      imageUrl: imageUrl,
+      imageUrl,
+      imageFile: req.file,
     });
 
     return res.status(201).json({ ok: true, data });
@@ -56,6 +53,18 @@ export async function get(req, res, next) {
   }
 }
 
+export async function getImage(req, res, next) {
+  try {
+    const id = Number(req.params?.id);
+    const { data, mime } = await photocardService.getPhotoCardImage(id);
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.send(data);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 // (호환용) 기존 이름을 쓰고 있으면 이렇게 위임해도 됨
 export async function getPhotoCards(req, res, next) {
   return list(req, res, next);
@@ -75,6 +84,7 @@ export async function update(req, res, next) {
       minPrice: req.body?.minPrice,
       totalSupply: req.body?.totalSupply,
       imageUrl: req.body?.imageUrl,
+      imageFile: req.file,
     });
 
     return res.json({ ok: true, data });
@@ -119,6 +129,7 @@ export async function createWithUserCard(req, res, next) {
       minPrice: req.body?.minPrice,
       totalSupply: req.body?.totalSupply,
       imageUrl: req.body?.imageUrl,
+      imageFile: req.file,
     };
     const data = await createPhotoCardWithUserCard(creatorUserId, payload);
     return res.status(201).json({ ok: true, data });
