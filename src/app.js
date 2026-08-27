@@ -31,6 +31,10 @@ app.use(
 app.options('*', cors());
 app.use(morgan("dev"));
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 // 로컬 업로드 파일 정적 서빙
 app.use("/public", express.static(path.join(process.cwd(), "public")));
 
